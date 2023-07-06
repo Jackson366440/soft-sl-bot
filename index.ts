@@ -165,6 +165,11 @@ eventEmitter.on('softSlSet', async ({ coin, direction, price, timeframe }: { coi
                 console.log('position closing order result: ', result);
 
                 //change this to env variable
+                //also need to check if there already is a soft sl placed for that position--if so, do not allow to add 2nd
+                //& add command to delete sl's
+                //& command to list active sl's
+                //& command to add api info
+                //for api storing use mongodb
                 const channel = client.channels.cache.get('1126214053430317196');
                 if (channel) {
                     const textchannel = channel as TextChannel;
