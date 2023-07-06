@@ -119,21 +119,33 @@ eventEmitter.on('softSlSet', ({ coin, direction, price, timeframe }) => __awaite
             eventEmitter.emit('slPosNotFound');
             return;
         }
-        eventEmitter.on('slTriggered', () => __awaiter(void 0, void 0, void 0, function* () {
-            console.log('slTriggered event fired');
-            const closingSide = direction === 'long' ? 'close_long' : 'close_short';
-            const closingOrder = {
-                marginCoin: slPosition.marginCoin,
-                orderType: 'market',
-                side: closingSide,
-                size: slPosition.available,
-                symbol: slPosition.symbol,
-            };
-            console.log('closing position with market order: ', closingOrder);
-            const result = yield bitgetClient.submitOrder(closingOrder);
-            console.log('position closing order result: ', result);
+        eventEmitter.on('slTriggered', (closePrice) => __awaiter(void 0, void 0, void 0, function* () {
+            try {
+                console.log('slTriggered event fired');
+                const closingSide = direction === 'long' ? 'close_long' : 'close_short';
+                const closingOrder = {
+                    marginCoin: slPosition.marginCoin,
+                    orderType: 'market',
+                    side: closingSide,
+                    size: slPosition.available,
+                    symbol: slPosition.symbol,
+                };
+                console.log('closing position with market order: ', closingOrder);
+                const result = yield bitgetClient.submitOrder(closingOrder);
+                console.log('position closing order result: ', result);
+                //change this to env variable
+                const channel = client.channels.cache.get('1126214053430317196');
+                if (channel) {
+                    const textchannel = channel;
+                    //change this to mention specific user
+                    textchannel.send(`<@811090676284260372> Soft SL triggered--\`${coin} ${direction}\` closed @ ${closePrice}`);
+                }
+            }
+            catch (error) {
+                console.error('Error while closing position:', error);
+            }
         }));
-        eventEmitter.emit('slPosFound', slPosition.averageOpenPrice, slPosition.margin, slPosition.leverage, slPosition.available);
+        eventEmitter.emit('slPosFound', slPosition.averageOpenPrice, slPosition.margin, slPosition.leverage, slPosition.available, direction === 'long' ? 'below' : 'above');
         wsClient.subscribeTopic('MC', timeframe, coin.replace('_UMCBL', ''));
     }
     catch (e) {

@@ -47,27 +47,18 @@ module.exports = {
         await interaction.deferReply({ ephemeral: false });
 
         const slPosNotFoundListener = async () => {
-            await interaction.followUp({ content: `An open \`${coin} ${direction}\` position was not found`, ephemeral: false });
+            await interaction.followUp({ content: `An open \`${coin} ${direction}\` position was not found`, ephemeral: true });
             eventEmitter.off('slPosNotFound', slPosNotFoundListener);
             eventEmitter.off('slPosFound', slPosFoundListener);
-            eventEmitter.off('slTriggered', slTriggeredListener);
         };
-        const slPosFoundListener = async (entry, margin, leverage, size) => {
-            await interaction.followUp({ content: `An open \`${coin} ${direction}\` position was found:\n\`\`\`entry: ${entry}\nmargin: ${margin}\nleverage: ${leverage}\nsize: ${size}\`\`\``, ephemeral: false });
+        const slPosFoundListener = async (entry, margin, leverage, size, aboveOrBelow) => {
+            await interaction.followUp({ content: `An open \`${coin} ${direction}\` position was found:\n\`\`\`entry: ${entry}\nmargin: ${margin}\nleverage: ${leverage}\nsize: ${size}\`\`\`\nSoft SL set at ${timeframe} close ${aboveOrBelow} ${price}`, ephemeral: true });
             eventEmitter.off('slPosNotFound', slPosNotFoundListener);
             eventEmitter.off('slPosFound', slPosFoundListener);
-            eventEmitter.off('slTriggered', slTriggeredListener);
-        };
-        const slTriggeredListener = async (closePrice) => {
-            await interaction.followUp({ content: `Soft SL triggered on \`${coin} ${direction}\`\nclosed @ ${closePrice}`, ephemeral: false });
-            eventEmitter.off('slPosNotFound', slPosNotFoundListener);
-            eventEmitter.off('slPosFound', slPosFoundListener);
-            eventEmitter.off('slTriggered', slTriggeredListener);
         };
 
         eventEmitter.on('slPosNotFound', slPosNotFoundListener);
         eventEmitter.on('slPosFound', slPosFoundListener);
-        eventEmitter.on('slTriggered', slTriggeredListener);
 
         eventEmitter.emit('softSlSet', { coin, direction, price, timeframe });
     },
