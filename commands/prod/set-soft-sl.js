@@ -67,6 +67,7 @@ module.exports = {
 
         eventEmitter.on('slPosNotFound', slPosNotFoundListener);
         eventEmitter.on('slPosFound', slPosFoundListener);
+        eventEmitter.on('slTriggered', slTriggeredListener);
 
         eventEmitter.emit('softSlSet', { coin, direction, price, timeframe });
     },
