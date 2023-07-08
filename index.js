@@ -32,7 +32,6 @@ const mongoClient = new MongoClient(uri, {
 });
 const client = new discord_js_1.Client({ intents: [discord_js_1.GatewayIntentBits.Guilds] });
 client.commands = new discord_js_1.Collection();
-const activeSLs = new Map();
 const foldersPath = node_path_1.default.join(__dirname, 'commands');
 const commandFolders = node_fs_1.default.readdirSync(foldersPath);
 for (const folder of commandFolders) {
@@ -124,12 +123,32 @@ client.once(discord_js_1.Events.ClientReady, (c) => __awaiter(void 0, void 0, vo
                     userId: userId,
                 };
                 yield activeSLsCollection.insertOne(activeSL);
-                activeSLs.set(userId, activeSL);
                 eventEmitter.emit('slPosFound', slPosition.averageOpenPrice, slPosition.margin, slPosition.leverage, slPosition.available, direction === 'long' ? 'below' : 'above');
-                wsClient.on('update', (data) => {
+                wsClient.on('update', (data) => __awaiter(void 0, void 0, void 0, function* () {
                     if (data.arg.instType === 'mc' && data.arg.channel === timeframe.toString() && data.arg.instId === coin.replace('_UMCBL', '')) {
                         if (isSnapshotUpdate) {
                             isSnapshotUpdate = false;
+                            return;
+                        }
+                        const slStillExists = yield activeSLsCollection.findOne({ coin, direction, userId });
+                        if (!slStillExists) {
+                            console.log('SL canceled');
+                            wsClient.closeAll();
+                            return;
+                        }
+                        const posResult = yield bitgetClient.getPositions('umcbl');
+                        const currentPositions = posResult.data.filter((pos) => pos.total !== '0');
+                        const positionStillOpen = currentPositions.find((pos) => pos.symbol === coin && pos.holdSide === direction);
+                        if (!positionStillOpen) {
+                            console.log('Position manually closed');
+                            const result = yield activeSLsCollection.deleteOne({ userId, coin, direction });
+                            console.log('Removing from DB: ', result);
+                            const channel = client.channels.cache.get('1126214053430317196');
+                            if (channel) {
+                                const textchannel = channel;
+                                textchannel.send(`<@${userId}> ${coin} ${direction} manually closed, removing soft SL`);
+                            }
+                            wsClient.closeAll();
                             return;
                         }
                         const openPrice = parseFloat(data.data[0][1]);
@@ -137,12 +156,12 @@ client.once(discord_js_1.Events.ClientReady, (c) => __awaiter(void 0, void 0, vo
                         if ((openPrice < price && direction === 'long') || (openPrice > price && direction === 'short')) {
                             console.log(`closed above ${price} @ ${closePrice}, closing position`);
                             // close position
-                            eventEmitter.emit('slTriggered', coin, direction, slPosition.available, closePrice, userId);
+                            eventEmitter.emit('slTriggered', coin, direction, positionStillOpen.available, closePrice, userId);
                             wsClient.closeAll();
                             return;
                         }
                     }
-                });
+                }));
                 wsClient.on('open', (data) => {
                     console.log('WS connection opened:', data.wsKey);
                 });
@@ -184,16 +203,10 @@ eventEmitter.on('slTriggered', (coin, direction, available, closePrice, userId) 
         const result = yield bitgetClient.submitOrder(closingOrder);
         console.log('position closing order result: ', result);
         yield activeSLsCollection.deleteOne({ coin, direction, userId });
-        //also need to check if there already is a soft sl placed for that position--if so, modify first
-        //& add command to delete sl's
-        //& command to list active sl's
-        //& command to add api info
-        //for api storing use mongodb
         const channel = client.channels.cache.get('1126214053430317196');
         if (channel) {
             const textchannel = channel;
-            //change this to mention specific user
-            textchannel.send(`<@811090676284260372> Soft SL triggered--\`${coin} ${direction}\` closed @ ${closePrice}`);
+            textchannel.send(`<@${userId}> Soft SL triggered--\`${coin} ${direction}\` closed @ ${closePrice}`);
         }
     }
     catch (error) {
