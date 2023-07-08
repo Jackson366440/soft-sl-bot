@@ -39,28 +39,38 @@ module.exports = {
                     { name: '1D', value: '1D' },
                 )),
     async execute(interaction) {
+        const userId = interaction.user.id;
         const coin = interaction.options.getString('coin').toUpperCase();
         const direction = interaction.options.getString('direction');
         const price = interaction.options.getNumber('price');
         const timeframe = interaction.options.getString('timeframe');
 
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({ ephemeral: true });
 
         const slPosNotFoundListener = async () => {
             await interaction.followUp({ content: `An open \`${coin} ${direction}\` position was not found`, ephemeral: true });
             eventEmitter.off('slPosNotFound', slPosNotFoundListener);
+            eventEmitter.off('existingSlFound', existingSlFoundListener);
+            eventEmitter.off('slPosFound', slPosFoundListener);
+        };
+        const existingSlFoundListener = async (existingSLPrice, existingSLTimeframe, aboveOrBelow) => {
+            await interaction.followUp({ content: `A soft SL already exists for this position:\n\`${existingSLTimeframe} close ${aboveOrBelow} ${existingSLPrice}\``, ephemeral: true });
+            eventEmitter.off('slPosNotFound', slPosNotFoundListener);
+            eventEmitter.off('existingSlFound', existingSlFoundListener);
             eventEmitter.off('slPosFound', slPosFoundListener);
         };
         const slPosFoundListener = async (entry, margin, leverage, size, aboveOrBelow) => {
             await interaction.followUp({ content: `An open \`${coin} ${direction}\` position was found:\n\`\`\`entry: ${entry}\nmargin: ${margin}\nleverage: ${leverage}\nsize: ${size}\`\`\`\nSoft SL set at ${timeframe} close ${aboveOrBelow} ${price}`, ephemeral: true });
             eventEmitter.off('slPosNotFound', slPosNotFoundListener);
+            eventEmitter.off('existingSlFound', existingSlFoundListener);
             eventEmitter.off('slPosFound', slPosFoundListener);
         };
 
         eventEmitter.on('slPosNotFound', slPosNotFoundListener);
+        eventEmitter.on('existingSlFound', existingSlFoundListener);
         eventEmitter.on('slPosFound', slPosFoundListener);
 
-        eventEmitter.emit('softSlSet', { coin, direction, price, timeframe });
+        eventEmitter.emit('softSlSet', { coin, direction, price, timeframe, userId });
     },
     eventEmitter: eventEmitter,
 };
