@@ -21,11 +21,11 @@ module.exports = {
                 ))
         .addNumberOption(option =>
             option.setName('price')
-                .setDescription('Price of stop loss')
+                .setDescription('Price of soft stop loss')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('timeframe')
-                .setDescription('Timeframe to look for closure on')
+                .setDescription('Timeframe to look for candle close on')
                 .setRequired(true)
                 .addChoices(
                     { name: '1m', value: '1m' },
@@ -60,7 +60,7 @@ module.exports = {
             eventEmitter.off('slPosFound', slPosFoundListener);
         };
         const slPosFoundListener = async (entry, margin, leverage, size, aboveOrBelow) => {
-            await interaction.followUp({ content: `An open \`${coin} ${direction}\` position was found:\n\`\`\`entry: ${entry}\nmargin: ${margin}\nleverage: ${leverage}\nsize: ${size}\`\`\`\nSoft SL set at ${timeframe} close ${aboveOrBelow} ${price}`, ephemeral: true });
+            await interaction.followUp({ content: `An open \`${coin} ${direction}\` position was found:\n\`\`\`entry: ${entry}\nmargin: ${margin}\nleverage: ${leverage}\nsize: ${size}\`\`\`\nSoft SL set at \`${timeframe} close ${aboveOrBelow} ${price}\``, ephemeral: true });
             eventEmitter.off('slPosNotFound', slPosNotFoundListener);
             eventEmitter.off('existingSlFound', existingSlFoundListener);
             eventEmitter.off('slPosFound', slPosFoundListener);

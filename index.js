@@ -74,7 +74,7 @@ client.once(discord_js_1.Events.ClientReady, (c) => __awaiter(void 0, void 0, vo
                 }
                 const userKeys = yield collection.findOne({ userId });
                 if (!userKeys) {
-                    yield interaction.reply({ content: 'No API keys found for the user.', ephemeral: true });
+                    yield interaction.reply({ content: 'No API keys found for the user. Add one using /add-bitget-api', ephemeral: true });
                     return;
                 }
                 bitgetClient = new bitget_api_1.FuturesClient({
@@ -102,6 +102,7 @@ client.once(discord_js_1.Events.ClientReady, (c) => __awaiter(void 0, void 0, vo
                 const logger = Object.assign({}, bitget_api_1.DefaultLogger);
                 const wsClient = new bitget_api_1.WebsocketClient({}, logger);
                 let isSnapshotUpdate = true;
+                let isSLCanceled = false; // Flag to track if SL has already been canceled
                 const positionsResult = yield bitgetClient.getPositions('umcbl');
                 const openPositions = positionsResult.data.filter((pos) => pos.total !== '0');
                 const slPosition = openPositions.find((pos) => pos.symbol === coin && pos.holdSide === direction);
@@ -130,9 +131,14 @@ client.once(discord_js_1.Events.ClientReady, (c) => __awaiter(void 0, void 0, vo
                             isSnapshotUpdate = false;
                             return;
                         }
+                        if (isSLCanceled) {
+                            // Soft SL has already been canceled, no need to proceed
+                            return;
+                        }
                         const slStillExists = yield activeSLsCollection.findOne({ coin, direction, userId });
                         if (!slStillExists) {
                             console.log('SL canceled');
+                            isSLCanceled = true; // Set the flag to indicate SL has been canceled
                             wsClient.closeAll();
                             return;
                         }
@@ -146,8 +152,9 @@ client.once(discord_js_1.Events.ClientReady, (c) => __awaiter(void 0, void 0, vo
                             const channel = client.channels.cache.get('1126214053430317196');
                             if (channel) {
                                 const textchannel = channel;
-                                textchannel.send(`<@${userId}> ${coin} ${direction} manually closed, removing soft SL`);
+                                textchannel.send(`<@${userId}> \`${coin} ${direction}\` manually closed, removing soft SL`);
                             }
+                            isSLCanceled = true; // Set the flag to indicate SL has been canceled
                             wsClient.closeAll();
                             return;
                         }

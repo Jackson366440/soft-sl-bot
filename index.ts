@@ -96,7 +96,7 @@ client.once(Events.ClientReady, async (c) => {
                 const userKeys = await collection.findOne({ userId });
 
                 if (!userKeys) {
-                    await interaction.reply({ content: 'No API keys found for the user.', ephemeral: true });
+                    await interaction.reply({ content: 'No API keys found for the user. Add one using /add-bitget-api', ephemeral: true });
                     return;
                 }
 
@@ -130,6 +130,8 @@ client.once(Events.ClientReady, async (c) => {
                 const wsClient = new WebsocketClient({}, logger,);
 
                 let isSnapshotUpdate = true;
+                let isSLCanceled = false; // Flag to track if SL has already been canceled
+
 
                 const positionsResult = await bitgetClient.getPositions('umcbl');
                 const openPositions = positionsResult.data.filter(
@@ -169,10 +171,15 @@ client.once(Events.ClientReady, async (c) => {
                             isSnapshotUpdate = false;
                             return;
                         }
+                        if (isSLCanceled) {
+                            // Soft SL has already been canceled, no need to proceed
+                            return;
+                        }
 
                         const slStillExists = await activeSLsCollection.findOne({ coin, direction, userId });
                         if (!slStillExists) {
                             console.log('SL canceled');
+                            isSLCanceled = true; // Set the flag to indicate SL has been canceled
                             wsClient.closeAll();
                             return;
                         }
@@ -191,8 +198,9 @@ client.once(Events.ClientReady, async (c) => {
                             const channel = client.channels.cache.get('1126214053430317196');
                             if (channel) {
                                 const textchannel = channel as TextChannel;
-                                textchannel.send(`<@${userId}> ${coin} ${direction} manually closed, removing soft SL`);
+                                textchannel.send(`<@${userId}> \`${coin} ${direction}\` manually closed, removing soft SL`);
                             }
+                            isSLCanceled = true; // Set the flag to indicate SL has been canceled
                             wsClient.closeAll();
                             return;
                         }

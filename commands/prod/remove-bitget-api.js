@@ -32,7 +32,7 @@ module.exports = {
             // Access the bitget_api_keys collection
             const collection = database.collection('bitget_api_keys');
 
-            // Insert the API data into the collection
+            // Delete the API data from the collection
             const result = await collection.deleteOne({ userId });
 
             console.log('Bitget API removed from database.');
